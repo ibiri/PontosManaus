@@ -1,15 +1,14 @@
 import streamlit as st
 import pandas as pd
 import simplekml
-import os
-import zipfile
 from io import BytesIO
+import zipfile
 
 # === CONFIG ===
-st.set_page_config(page_title="Sorteio de Pontos - Manaus", layout="centered")
+st.set_page_config(page_title="Sorteio de Setores - Manaus", layout="centered")
 
 # === TÍTULO ===
-st.title("🎯 Sorteio de Pontos (Manaus)")
+st.title("🎯 Sorteio de Setores Censitários - Manaus")
 
 # === ENTRADAS ===
 total_pontos = st.number_input("🔢 Total de pontos a sortear", min_value=1, max_value=500, value=50)
@@ -19,10 +18,13 @@ num_days = st.number_input("📅 Número de dias (arquivos KMZ)", min_value=1, m
 if st.button("🚀 Gerar arquivos KMZ"):
     with st.spinner("Processando..."):
 
-        # Caminho fixo para carregar o CSV
-        df = pd.read_csv("setores_juntados.csv", delimiter=";")
+        # === URL do Google Sheets convertido para CSV
+        url = "https://docs.google.com/spreadsheets/d/12St0kWrOAVs2k8ILIXZC-kchqIL6KrUuQpHXEutpnCY/export?format=csv"
 
-        # Mapeamento de bairros para zonas
+        # === Leitura do CSV diretamente do Google Sheets
+        df = pd.read_csv(url, delimiter=';')
+
+        # === Mapeamento dos bairros para zonas
         bairro_zona_mapping = {
             'Adrianopólis': 'Centro-Sul', 'Águas Claras': 'Norte', 'Aleixo': 'Centro-Sul', 'Alvorada': 'Centro-Oeste',
             'Amazonino Mendes': 'Norte', 'Armando Mendes': 'Leste', 'Da paz': 'Centro-Oeste', 'União': 'Centro-Sul',
@@ -46,11 +48,12 @@ if st.button("🚀 Gerar arquivos KMZ"):
         proporcoes = (setores_por_zona / 2992) * total_pontos
         proporcoes = proporcoes.round().astype(int)
 
+        # Ajustar para garantir total exato de pontos
         while proporcoes.sum() != total_pontos:
             diff = total_pontos - proporcoes.sum()
             proporcoes.iloc[0] += diff
 
-        # Criar arquivos KMZ na memória
+        # === Gerar arquivos KMZ e zipar em memória
         zip_buffer = BytesIO()
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
             for day in range(1, num_days + 1):
@@ -61,11 +64,11 @@ if st.button("🚀 Gerar arquivos KMZ"):
                     sampled_df = pd.concat([sampled_df, sampled_df_zona])
 
                 sampled_df = sampled_df[['DSC_LOCALIDADE', 'CD_SETOR', 'ZONA', 'LATITUDE', 'LONGITUDE']]
-
                 kml = simplekml.Kml()
+
                 for _, row in sampled_df.iterrows():
-                    description = f"Bairro: {row['DSC_LOCALIDADE']}\nZona: {row['ZONA']}"
-                    kml.newpoint(name=row['CD_SETOR'], description=description, coords=[(row['LONGITUDE'], row['LATITUDE'])])
+                    desc = f"Bairro: {row['DSC_LOCALIDADE']}\nZona: {row['ZONA']}"
+                    kml.newpoint(name=row['CD_SETOR'], description=desc, coords=[(row['LONGITUDE'], row['LATITUDE'])])
 
                 kmz_buffer = BytesIO()
                 kml.savekmz(kmz_buffer)
@@ -73,11 +76,12 @@ if st.button("🚀 Gerar arquivos KMZ"):
                 zip_file.writestr(f"sampled_data_day_{day}.kmz", kmz_buffer.read())
 
         zip_buffer.seek(0)
-        st.success("✅ Arquivos gerados com sucesso!")
+        st.success("✅ Arquivos KMZ gerados com sucesso!")
 
         st.download_button(
-            label="📥 Baixar todos os arquivos KMZ (.zip)",
+            label="📥 Baixar todos os arquivos (ZIP)",
             data=zip_buffer,
             file_name="KMZ_Sorteio_Manaus.zip",
             mime="application/zip"
         )
+
