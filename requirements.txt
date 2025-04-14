@@ -1,6 +1,6 @@
 streamlit
 pandas
-simplekml
+fastkml
 
 git add requirements.txt
 git commit -m "add requirements"
