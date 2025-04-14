@@ -1,8 +1,8 @@
 streamlit
 pandas
-fastkml
+
 
 git add requirements.txt
-git commit -m "add requirements"
+git commit -m "corrige dependências"
 git push
 
